@@ -2,11 +2,11 @@
 #pragma config(Sensor, S1,     ,               sensorI2CMuxController)
 #pragma config(Sensor, S2,     IRLeft,         sensorI2CCustom)
 #pragma config(Sensor, S3,     IRRight,        sensorI2CCustom)
-#pragma config(Motor,  mtr_S1_C1_1,     launcher,      tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S1_C1_2,     lift,          tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C1_1,     lift,          tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C1_2,     collector,     tmotorTetrix, openLoop)
 #pragma config(Motor,  mtr_S1_C2_1,     left,          tmotorTetrix, openLoop)
 #pragma config(Motor,  mtr_S1_C2_2,     right,         tmotorTetrix, openLoop, reversed)
-#pragma config(Motor,  mtr_S1_C4_1,     frontLow2,     tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C4_1,     launcher,      tmotorTetrix, openLoop)
 #pragma config(Motor,  mtr_S1_C4_2,     frontLow,      tmotorTetrix, openLoop)
 #pragma config(Servo,  srvo_S1_C3_1,    auto1,                tServoStandard)
 #pragma config(Servo,  srvo_S1_C3_2,    auto2,                tServoStandard)
@@ -73,109 +73,6 @@ int getMotorOutput(int joystickValue){
 		return (ratio * (SLOW_MOTOR_POWER)) * directionValue;
 	}
 }
-/*
-Moves the autonomous arm out of the way for the flag motor
-*/
-void moveAutoArm (){
-if(joy1Btn(9)){
-   	servoTarget[auto2] = ServoValue(auto2) + 30;
-	}
-	else if(joy1Btn(10)){
-		servoTarget[auto2] = ServoValue(auto2) - 30;
-	}
-
-	if(joy2Btn(9)){
-   	servoTarget[auto1] = ServoValue(auto1) + 30;
-	}
-	else if(joy2Btn(10)){
-		servoTarget[auto1] = ServoValue(auto1) - 30;
-	}
-
-}
-
-/*
-Moves the front and lower parts of the arm lift
-*/
-void moveLift() {/*
-
-if(joy2Btn(6)){
-		motor[frontLow] = 100;
-		motor[frontLow2] = -100;
-	}
-	else if (joy2Btn(5)){
-		motor[frontLow] = -100;
-		motor[frontLow2] = 100;
-	}
-	else if(joy1Btn(8)){
-		motor[frontLow2] = -100;
-		motor[frontLow] = 0;
-	}
-	else if(joy1Btn(6)){
-		motor[frontLow2] = 100;
-		motor[frontLow] = 0;
-	}
-	else if(joy1Btn(7)){
-		motor[frontLow] = 100;
-		motor[frontLow2] = 0;
-	}
-	else if(joy1Btn(5)){
-		motor[frontLow] = -100;
-		motor[frontLow2] = 0;
-	}
-	else{
-		motor[frontLow] = 0;
-		motor[frontLow2] = 0;
-	}
-
-
-	if(joy2Btn(7)){
-		motor[frontHigh] = 100;
-	}
-	else if(joy2Btn(8)){
-		motor[frontHigh] = -100;
-	}
-	else{
-		motor[frontHigh] = 0;*
-	}*/
-}
-
-/*
-Moves the motor that raises and lowers the bucket
-*/
-void moveBucket() {
-	if(joy1Btn(3)){
-		motor[launcher] = 50;
-	}
-	else if(joy1Btn(1)){
-		motor[launcher] = -50;
-	}
-	else{
-		motor[launcher] = 0;
-	}
-}
-
-/*
-Moves the motor to raise the flag either slowly or quickly
-*/
-void moveFlag() {
-	if(joy1Btn(2)){
-		motor[lift] = 100;
-	}
-	else if(joy1Btn(4)){
-		motor[lift] = -100;
-	}
-	else{
-		motor[lift] = 0;
-	}
-}
-void setSpeed(){
-	if(joy2Btn(1)){
-		fasterSpeed = false;
-	}
-	else if(joy2Btn(3)){
-		fasterSpeed = true;
-	}
-}
 
 /*
 Method that assigns the correct values to drive the motors
@@ -185,6 +82,43 @@ void drive()  {
 	motor[right] = getMotorOutput(joystick.joy1_y2);
 	motor[left] = getMotorOutput(joystick.joy1_y1);
 }
+
+void moveBallLift()  {
+	if(joy1Btn(8)){
+		motor[lift] = 100;
+	}
+	else if(joy1Btn(7)){
+		motor[lift] = -100;
+	}
+	else(){
+		motor[lift] = 0;
+	}
+}
+
+void ballCollection(){
+	if(joy1Btn(2)){
+		motor[collector] = 100;
+	}
+	else if(joy1Btn(4)){
+		motor[collector] = -100;
+	}
+	else(){
+		motor[collector] = 0;
+	}
+}
+
+void launchBall(){
+	if(joy1Btn(3)){
+		motor[launcher] = 100;
+	}
+	else if(joy1Btn(1)){
+		motor[launcher] = -100;
+	}
+	else(){
+		motor[launcher] = 0;
+	}
+}
+
 
 task main()
 {
@@ -197,9 +131,8 @@ task main()
   while (true){
   	getJoystickSettings(joystick);
 		drive();
-//	moveLift();
-		moveBucket();
-		moveFlag();
-		//moveAutoArm();*/
+		moveBallLift();
+		launchBall();
+		ballCollection();
 	}
 }

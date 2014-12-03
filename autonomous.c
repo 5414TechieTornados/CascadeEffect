@@ -37,10 +37,7 @@ void moveForward(float difference, bool coor){
 		nxtDisplayString(1,"Y: %i",yCoor);
 		wait10Msec(100);
 	}
-}
-
-void moveBackward(float difference){
-	wait10Msec(50);
+	wait10Msec(100);
 }
 
 void turnLeft(){
@@ -56,94 +53,130 @@ void turnRight(){
 	wait10Msec(100);
 }
 
-void handleXCoor(float newXCoor, float speed){
-
-	float difference = newXCoor - xCoor;
+void handleCoor(float newCoor, float speed, bool axis){
+	float difference;
+	if(axis){
+		difference = newCoor - xCoor;
+  }
+	else{
+ 		difference = newCoor - yCoor;
+	}
 	if(difference != 0){
-	if(direction == north){
-		if((difference/abs(difference)) == 1){
-			turnRight();
+		//North Direction
+		if(direction == north){
+			//Positive
+			if((difference/abs(difference)) == 1){
+				//x axis
+				if(axis){
+					turnRight();
+				}
+				//y axis
+				else{
+				}
+			}
+			//Negative
+			else{
+				//x axis
+				if(axis){
+					turnLeft();
+				}
+				//y axis
+				else{
+					turnLeft();
+					turnLeft();
+				}
+			}
 		}
-		else{
-			turnLeft();
+		//South Direction
+		else if(direction == south){
+			//Positive
+			if((difference/abs(difference)) == 1){
+				//x axis
+				if(axis){
+					turnLeft();
+				}
+				//y axis
+				else{
+					turnLeft();
+					turnLeft();
+				}
+			}
+			//Negative
+			else{
+				//x axis
+				if(axis){
+					turnRight();
+				}
+				//y axis
+				else{
+				}
+			}
 		}
+		//East Direction
+		else if(direction == east){
+			//Positive
+			if((difference/abs(difference)) == 1){
+				//x axis
+				if(axis){
+			}
+			//y axis
+				else{
+					turnLeft();
+				}
+			}
+			//Negative
+			else{
+				//x axis
+				if(axis){
+					turnLeft();
+					turnLeft();
+				}
+				//y axis
+				else{
+					turnRight();
+				}
+			}
+		}
+		//West Direction
+		else if(direction == west){
+			//Positive
+			if((difference/abs(difference)) == 1){
+				//x axis
+				if(axis){
+					turnLeft();
+					turnLeft();
+				}
+				//y axis
+				else{
+					turnRight();
+				}
+			}
+			//Negative
+			else{
+				//x axis
+				if(axis){
+				}
+				//y axis
+				else{
+					turnLeft();
+				}
+			}
+		}
+		moveForward(difference, axis);
 	}
-	else if(direction == south){
-		if((difference/abs(difference)) == 1){
-			turnLeft();
-		}
-		else{
-			turnRight();
-		}
-	}
-	else if(direction == east){
-		if((difference/abs(difference)) == 1){
-		}
-		else{
-			turnLeft();
-			turnLeft();
-		}
-	}
-	else if(direction == west){
-		if((difference/abs(difference)) == 1){
-			turnLeft();
-			turnLeft();
-		}
-	}
-	moveForward(difference, true);
-}
-}
-
-void handleYCoor(float newYCoor, float speed){
-float difference = newYCoor - yCoor;
-if(difference != 0){
-	if(direction == north){
-		if((difference/abs(difference)) == 1){
-		}
-		else{
-			turnLeft();
-			turnLeft();
-		}
-	}
-	else if(direction == south){
-		if((difference/abs(difference)) == 1){
-			turnLeft();
-			turnLeft();
-		}
-		else{
-		}
-	}
-	else if(direction == east){
-		if((difference/abs(difference)) == 1){
-		  turnLeft();
-		}
-		else{
-			turnRight();
-		}
-	}
-	else if(direction == west){
-		if((difference/abs(difference)) == 1){
-			turnRight();
-		}
-		else{
-			turnLeft();
-		}
-	}
-	moveForward(difference, false);
-}
 }
 
 void simulateRobot(float newXCoor, float newYCoor, float speed){
 	if(speed != 0){
-		handleXCoor(newXCoor, speed);
-		handleYCoor(newYCoor, speed);
+		handleCoor(newXCoor, speed, true);
+		handleCoor(newYCoor, speed, false);
 	}
 	xCoor = newXCoor;
 	yCoor = newYCoor;
 	nxtDisplayString(0,"X: %i",xCoor);
 	nxtDisplayString(1,"Y: %i",yCoor);
 	nxtDisplayString(2,"D: %i",direction);
-	wait10Msec(50);
+	wait10Msec(100);
 }
 
 task main()

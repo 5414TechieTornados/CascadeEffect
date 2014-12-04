@@ -176,7 +176,9 @@ void simulateRobot(float newXCoor, float newYCoor, float speed){
 	nxtDisplayString(0,"X: %i",xCoor);
 	nxtDisplayString(1,"Y: %i",yCoor);
 	nxtDisplayString(2,"D: %i",direction);
-	wait10Msec(100);
+	nxtDisplayString(3,"Move done");
+	wait10Msec(500);
+	nxtDisplayClearTextLine(3);
 }
 
 task main()
@@ -189,4 +191,15 @@ task main()
 	simulateRobot(4, 2, 100);
 	simulateRobot(1, 5, 100);
 	simulateRobot(3, 2, 100);
+	simulateRobot(4, 2, 100);
+	simulateRobot(2, 1, 100);
+	simulateRobot(3, 3, 100);
+	simulateRobot(3, 5, 100);
+	simulateRobot(3, 3, 100);
+	simulateRobot(3, 1, 100);
+	simulateRobot(3, 5, 100);
+	simulateRobot(4, 5, 100);
+	simulateRobot(5, 5, 100);
+	simulateRobot(4, 5, 100);
+
 }

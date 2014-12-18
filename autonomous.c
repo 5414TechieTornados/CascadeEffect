@@ -11,6 +11,12 @@ int east = 1;
 int south = 2;
 int west = 3;
 
+bool badPoint [7][7];
+
+bool validPoint (int X, int Y){
+	return badPoint[X][Y];
+}
+
 float convertInches(){
 }
 
@@ -19,18 +25,26 @@ void moveForward(float difference, bool coor){
 	for(int i = 0; i < abs(difference); i++){
 		if(direction == north || direction == east){
 			if(coor){
-				xCoor++;
+				if(validPoint(xCoor + 1, yCoor)){
+					xCoor++;
+				}
 			}
 			else{
-				yCoor++;
+				if(validPoint(xCoor, yCoor + 1)){
+					yCoor++;
+				}
 			}
 		}
 		else{
 			if(coor){
-				xCoor--;
+				if(validPoint(xCoor - 1, yCoor)){
+					xCoor--;
+				}
 			}
 			else{
-				yCoor--;
+				if(validPoint(xCoor, yCoor - 1)){
+					yCoor--;
+				}
 			}
 		}
 		nxtDisplayString(0,"X: %i",xCoor);
@@ -55,6 +69,7 @@ void turnRight(){
 
 void handleCoor(float newCoor, float speed, bool axis){
 	float difference;
+
 	if(axis){
 		difference = newCoor - xCoor;
   }
@@ -183,6 +198,12 @@ void simulateRobot(float newXCoor, float newYCoor, float speed){
 
 task main()
 {
+	badPoint[3][3] = false;
+	badPoint [3][4] = false;
+	badPoint [4][3] = false;
+	badPoint [4][4] = false;
+	badPoint [3][1] = false;
+	badPoint [4][1] = false;
 
 	simulateRobot(3, 2, 0);
 	simulateRobot(2, 2, 100);

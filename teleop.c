@@ -3,14 +3,14 @@
 #pragma config(Sensor, S2,     IRLeft,         sensorI2CCustom)
 #pragma config(Sensor, S3,     IRRight,        sensorI2CCustom)
 #pragma config(Motor,  mtr_S1_C1_1,     launcher,      tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S1_C1_2,     collector,     tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C1_2,     belts,         tmotorTetrix, openLoop)
 #pragma config(Motor,  mtr_S1_C2_1,     left,          tmotorTetrix, openLoop)
 #pragma config(Motor,  mtr_S1_C2_2,     right,         tmotorTetrix, openLoop, reversed)
-#pragma config(Motor,  mtr_S1_C4_1,     lift,          tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S1_C4_2,     motorI,        tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C4_1,     collector,     tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C4_2,     lift,          tmotorTetrix, openLoop)
 #pragma config(Servo,  srvo_S1_C3_1,    bottomGate,           tServoStandard)
 #pragma config(Servo,  srvo_S1_C3_2,    topGate,              tServoStandard)
-#pragma config(Servo,  srvo_S1_C3_3,    servo3,               tServoNone)
+#pragma config(Servo,  srvo_S1_C3_3,    tube,                 tServoStandard)
 #pragma config(Servo,  srvo_S1_C3_4,    auto4,                tServoStandard)
 #pragma config(Servo,  srvo_S1_C3_5,    servo5,               tServoNone)
 #pragma config(Servo,  srvo_S1_C3_6,    servo6,               tServoNone)
@@ -21,13 +21,14 @@
 //Motor Values
 const float MAX_JOYSTICK = 127.0;
 const float MOTOR_POWER = 100;
-const float SLOW_MOTOR_POWER = 30;
+const float SLOW_MOTOR_POWER = 50;
 const float BALL_LIFT_UP = 100;
 const float BALL_LIFT_DOWN = -100;
-const float BALL_COLLECTOR_UP = 100;
-const float BALL_COLLECTOR_DOWN = -100;
+const float BALL_COLLECTOR_UP = 50;
+const float BALL_COLLECTOR_DOWN = -50;
 const float BALL_LAUNCHER_UP = 100;
 const float BALL_LAUNCHER_DOWN = -100;
+
 
 bool fasterSpeed = true;
 
@@ -69,8 +70,11 @@ void initializeRobot()
 
   // Place code here to initialize servos to starting positions.
   // Sensors are automatically configured and setup by ROBOTC. They may need a brief time to stabilize.
+  	servoTarget[bottomGate] = BOTTOM_GATE_DOWN;
+	servoTarget[topGate] = TOP_GATE_DOWN;
+	servoTarget[tube] = 255;
 
-  return;
+  	return;
 }
 
 /*
@@ -110,25 +114,38 @@ void drive()  {
 
 void moveBallLift()  {
 	if(joy2Btn(8)){
-		motor[lift] = BALL_LIFT_UP;
-	}
-	else if(joy2Btn(7)){
-		motor[lift] = BALL_LIFT_DOWN;
-	}
-	else{
-		motor[lift] = 0;
-	}
-}
-
-void ballCollection(){
-	if(joy2Btn(2)){
 		motor[collector] = BALL_COLLECTOR_UP;
 	}
-	else if(joy2Btn(4)){
+	else if(joy2Btn(7)){
 		motor[collector] = BALL_COLLECTOR_DOWN;
 	}
 	else{
 		motor[collector] = 0;
+	}
+}
+
+void ballCollection(){
+	if(joystick.joy2_TopHat == 0){
+		motor[belts] = 0;
+	}
+	else if(joystick.joy2_TopHat == 4){
+		motor[belts] = -100;
+	}
+	else if(joystick.joy2_TopHat == 2){
+		motor[belts] = -50;
+	}
+	else if(joystick.joy2_TopHat == 6){
+		motor[belts] = 100;
+	}
+
+	if(joy2Btn(2)){
+		motor[lift] = BALL_LIFT_UP;
+	}
+	else if(joy2Btn(4)){
+		motor[lift] = BALL_LIFT_DOWN;
+	}
+	else{
+		motor[lift] = 0;
 	}
 }
 
@@ -148,17 +165,26 @@ void moveGate(){
 	if(joy2Btn(6)){
 		servoTarget[topGate] = TOP_GATE_UP;
 	}
-	else if(joy2Btn(5)){
+	else if(ServoValue(topGate) > 165){
 		servoTarget[topGate] = TOP_GATE_DOWN;
 	}
 
 	if(joy2Btn(10)){
 		servoTarget[bottomGate] = BOTTOM_GATE_UP;
 	}
-	else{
+	else if(ServoValue(bottomGate) > 165){
 		servoTarget[bottomGate] = BOTTOM_GATE_DOWN;
 	}
 
+}
+
+void moveTubeServo(){
+	if(joy1Btn(4)){
+		servoTarget[tube] = 255;
+	}
+	else if(joy1Btn(2)){
+		servoTarget[tube] = 0;
+	}
 }
 
 
@@ -166,16 +192,19 @@ task main()
 {
 	// wait for start of tele-op phase
 	waitForStart();
+	initializeRobot();
 
 	bFloatDuringInactiveMotorPWM = false;
 
   //Game loop for robot
   while (true){
   	getJoystickSettings(joystick);
+
 		drive();
 		moveBallLift();
 		launchBall();
 		ballCollection();
 		moveGate();
+		moveTubeServo();
 	}
 }

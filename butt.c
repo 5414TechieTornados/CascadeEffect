@@ -37,12 +37,12 @@ task ButtonTask()
 			break;
 
   	case kLeftButton:
-		  motor[lift] = 50;
+		  motor[lift] = -50;
 		  rightSpeed = rightSpeed + rightSpeed;
 			break;
 
 		case kRightButton:
-		  motor[lift] = -50;
+		  motor[lift] = 50;
 			break;
 
 		case kEnterButton:

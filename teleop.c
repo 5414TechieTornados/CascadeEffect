@@ -26,7 +26,7 @@ const float BALL_LIFT_UP = 100;
 const float BALL_LIFT_DOWN = -100;
 const float BALL_COLLECTOR_UP = 50;
 const float BALL_COLLECTOR_DOWN = -50;
-const float BALL_LAUNCHER_UP = 100;
+const float BALL_LAUNCHER_UP = 75;
 const float BALL_LAUNCHER_DOWN = -100;
 
 

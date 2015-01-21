@@ -1,6 +1,6 @@
 #pragma config(Hubs,  S1, HTMotor,  HTMotor,  HTServo,  HTMotor)
 #pragma config(Sensor, S2,     IRRight,        sensorI2CCustom)
-#pragma config(Sensor, S3,     ,               sensorI2CCustom)
+#pragma config(Sensor, S3,     gyro,           sensorI2CCustom)
 #pragma config(Motor,  mtr_S1_C1_1,     launcher,      tmotorTetrix, openLoop)
 #pragma config(Motor,  mtr_S1_C1_2,     belts,         tmotorTetrix, openLoop)
 #pragma config(Motor,  mtr_S1_C2_1,     left,          tmotorTetrix, PIDControl)
@@ -17,6 +17,7 @@
 
 #include "drivers/hitechnic-irseeker-v2.h"
 #include "JoystickDriver.c"
+#include "drivers/hitechnic-gyro.h"
 
 //Robot directional info
 float xCoor = -1;
@@ -45,12 +46,35 @@ float turnDistance = 11.4;
 
 const float TOP_GATE_UP = 180;
 const float TOP_GATE_DOWN = 60;
-const float SPIN_UP_TIME = 6400;
+const float SPIN_UP_TIME = 2500;
 const float TURN_TIME = 1.0;
 const float RIGHT_TURN_TIME = 1.1;
 
 //Bad points on the field
 bool badPoint [7][7];
+
+void turnRight(){
+	motor[left] = 78;
+	motor[right] = -78;
+}
+
+void turnLeft(){
+	motor[left] = -78;
+	motor[right] = 78;
+}
+
+void gyroTurn(){
+	HTGYROstartCal(gyro);
+	float heading = 0.0;
+	float currTime;
+	float prevTime = nPgmTime;
+	while (true)
+	{
+		currTime = nPgmTime;
+		heading += ((float)HTGYROreadRot(gyro)) * (currTime - prevTime) / 1000;
+		prevTime = currTime;
+	}
+}
 
 void initializeRobot()
 {
@@ -207,35 +231,29 @@ void diagonalMove(){
 	startSpin(true);
 	driveRobot(blockDistance/2, 78, backwards);
 	turnLeft(turnDistance / 2.35);
-	driveRobot(blockDistance * 2.2, 78, backwards);
+	driveRobot(blockDistance * 2, 78, backwards);
 }
 
 void secondPosition(){
 	diagonalMove();
 	turnRight(turnDistance);
-	driveRobot(blockDistance/1.6, maxSpeed, backwards);
+	driveRobot(blockDistance/2.5, maxSpeed, backwards);
 	while(!checkSpinTimer()){
 	}
 	scoreBall();
 	hitPeg();
 }
 
-void hitPegThird(){
-	turnRight(turnDistance - 1);
-	driveRobot(blockDistance/.8, 78, backwards);
-	turnLeft(turnDistance + 1.);
-	driveRobot(4 * blockDistance, 78, backwards);
-}
+
 void thirdPosition(){
 	diagonalMove();
 	turnRight(turnDistance/1.8);
 	driveRobot(blockDistance * 1.5, maxSpeed, backwards);
 	turnRight(turnDistance);
-	driveRobot(blockDistance/5, maxSpeed, backwards);
 	while(!checkSpinTimer()){
 	}
 	scoreBall();
-	hitPegThird();
+	hitPeg();
 }
 
 void continueHitting(){
@@ -250,9 +268,11 @@ task main()
 
 	tHTIRS2DSPMode _mode = DSP_1200;
 	int seekerValue = -5;
+
 	wait10Msec(50);
 	seekerValue = HTIRS2readACDir(IRRight);
 	nxtDisplayString(2,"IR: %i",seekerValue);
+
 	ClearTimer(T1);
 	startSpin(true);
 	if(seekerValue > 4){

@@ -177,7 +177,7 @@ void turnRight(float distance){
 
 void driveOffRamp(){
 	driveRobot(blockDistance * 5.1, 78, backwards);
-	driveRobot(3, 35, backwards);
+	driveRobot(3, 20, backwards);
 	servoTarget[tube] = 0;
 	driveRobot(blockDistance, 78, forward);
 	turnRight(turnDistance/1.8);
@@ -186,7 +186,7 @@ void driveOffRamp(){
 	driveRobot(blockDistance * 3.1, 78, forward);
 	turnLeft(turnDistance + 2.8);
 	motor[lift] = -100;
-	wait10Msec(300);
+	wait10Msec(150);
 	motor[lift] = 0;
 	servoTarget(topGate) = TOP_GATE_UP;
 	while(true){

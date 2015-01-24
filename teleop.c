@@ -72,7 +72,7 @@ void initializeRobot()
   // Sensors are automatically configured and setup by ROBOTC. They may need a brief time to stabilize.
   	servoTarget[bottomGate] = BOTTOM_GATE_DOWN;
 	servoTarget[topGate] = TOP_GATE_DOWN;
-	servoTarget[tube] = 255;
+	servoTarget[tube] = 150;
 
   	return;
 }
@@ -180,10 +180,10 @@ void moveGate(){
 
 void moveTubeServo(){
 	if(joy1Btn(4)){
-		servoTarget[tube] = 255;
+		servoTarget[tube] = 150;
 	}
 	else if(joy1Btn(2)){
-		servoTarget[tube] = 0;
+		servoTarget[tube] = 230;
 	}
 }
 

@@ -23,6 +23,7 @@
 float xCoor = -1;
 float yCoor = -1;
 int direction = 0;
+float heading = 0.0;
 
 //directions
 int north = 0;
@@ -50,30 +51,88 @@ const float SPIN_UP_TIME = 2500;
 const float TURN_TIME = 1.0;
 const float RIGHT_TURN_TIME = 1.1;
 
+const float buffer = 6.0;
+
 //Bad points on the field
 bool badPoint [7][7];
 
-void turnRight(){
-	motor[left] = 78;
-	motor[right] = -78;
+void turnRight(float speed){
+	motor[left] = speed;
+	motor[right] = -speed;
 }
 
-void turnLeft(){
-	motor[left] = -78;
-	motor[right] = 78;
+void turnLeft(float speed){
+	motor[left] = -speed;
+	motor[right] = speed;
 }
 
-void gyroTurn(){
+void stopMotors(){
+	motor[left] = 0;
+	motor[right] = 0;
+}
+
+bool checkSpinTimer(){
+	if(time1(T1) > SPIN_UP_TIME){
+		motor[lift] = 0;
+		return true;
+	}
+	else
+		return false;
+}
+
+void gyroTurn(float target, float speed, bool direction){
 	HTGYROstartCal(gyro);
-	float heading = 0.0;
+	heading = 0.0;
 	float currTime;
 	float prevTime = nPgmTime;
 	while (true)
 	{
+		checkSpinTimer();
 		currTime = nPgmTime;
-		heading += ((float)HTGYROreadRot(gyro)) * (currTime - prevTime) / 1000;
+		heading += (abs((float)HTGYROreadRot(gyro))) * (currTime - prevTime) / 1000;
 		prevTime = currTime;
+
+		if(direction)
+		{
+			if(heading < (target - buffer))
+			{
+				turnRight(speed);
+			//	nxtDisplayString(1,"gyro: %i",HTGYROreadRot(gyro));
+			}
+			else if(heading > (target + buffer))
+			{
+				turnLeft(speed);
+			//	nxtDisplayString(1,"gyro: %i",HTGYROreadRot(gyro));
+			}
+			else if(heading <= (target + buffer) && heading >= (target - buffer))
+			{
+				stopMotors();
+			//	wait1Msec(waitTime);
+				return;
+			}
+		}
+		else
+		{
+			if(heading < (target - buffer))
+			{
+				turnLeft(speed);
+			//	nxtDisplayString(1,"gyro: %i",HTGYROreadRot(gyro));
+
+			}
+			else if(heading > (target + buffer))
+			{
+				turnRight(speed);
+			//	nxtDisplayString(1,"gyro: %i",HTGYROreadRot(gyro));
+			}
+			else if(heading <= (target + buffer) && heading >= (target - buffer))
+			{
+				stopMotors();
+			//	wait1Msec(waitTime);
+				return;
+			}
+		}
 	}
+	checkSpinTimer();
 }
 
 void initializeRobot()
@@ -96,15 +155,6 @@ void startSpin(bool up){
 	else{
 		motor[lift] = -00;
 	}
-}
-
-bool checkSpinTimer(){
-	if(time1(T1) > SPIN_UP_TIME){
-		motor[lift] = 0;
-		return true;
-	}
-	else
-		return false;
 }
 
 bool validPoint (int X, int Y){
@@ -190,13 +240,6 @@ void turnRightTime(int full){
 	motor[left] = 0;
 	motor[right] = 0;
 }
-void turnLeft(float distance){
-	driveRobot(distance, turnSpeed, leftDirection);
-}
-
-void turnRight(float distance){
-	driveRobot(distance, turnSpeed, rightDirection);
-}
 
 void scoreBall(){
 
@@ -210,16 +253,15 @@ void scoreBall(){
 
 
 void hitPeg(){
-	turnRight(turnDistance - 1);
+	gyroTurn(92.0, turnSpeed, true);
 	driveRobot(blockDistance/.9, 78, backwards);
-	turnLeft(turnDistance + 1.);
+	gyroTurn(92.0, turnSpeed, false);
 	driveRobot(4 * blockDistance, 78, backwards);
-
 }
 
 void firstPosition(){
 	startSpin(true);
-	driveRobot(1.85 * blockDistance, 78, backwards);
+	driveRobot(2.0 * blockDistance, 78, backwards);
 	while(!checkSpinTimer()){
 	}
 	scoreBall();
@@ -230,14 +272,14 @@ void firstPosition(){
 void diagonalMove(){
 	startSpin(true);
 	driveRobot(blockDistance/2, 78, backwards);
-	turnLeft(turnDistance / 2.35);
-	driveRobot(blockDistance * 2, 78, backwards);
+	gyroTurn(45.0, turnSpeed, false);
+	driveRobot(blockDistance * 2.5, 78, backwards);
 }
 
 void secondPosition(){
 	diagonalMove();
-	turnRight(turnDistance);
-	driveRobot(blockDistance/2.5, maxSpeed, backwards);
+	gyroTurn(90.0, turnSpeed, true);
+	driveRobot(blockDistance/2.6, maxSpeed, backwards);
 	while(!checkSpinTimer()){
 	}
 	scoreBall();
@@ -247,9 +289,9 @@ void secondPosition(){
 
 void thirdPosition(){
 	diagonalMove();
-	turnRight(turnDistance/1.8);
+	gyroTurn(45.0, turnSpeed, true);
 	driveRobot(blockDistance * 1.5, maxSpeed, backwards);
-	turnRight(turnDistance);
+	gyroTurn(90.0, turnSpeed, true);
 	while(!checkSpinTimer()){
 	}
 	scoreBall();
@@ -257,8 +299,8 @@ void thirdPosition(){
 }
 
 void continueHitting(){
-	driveRobot(blockDistance * 2, 78, forward);
-	driveRobot(blockDistance * 2, 78, backwards);
+	driveRobot(blockDistance * 3, 78, forward);
+	driveRobot(blockDistance * 4, 78, backwards);
 }
 
 task main()
@@ -271,8 +313,13 @@ task main()
 
 	wait10Msec(50);
 	seekerValue = HTIRS2readACDir(IRRight);
-	nxtDisplayString(2,"IR: %i",seekerValue);
-
+	/*while(true){
+		nxtDisplayString(2,"gyro: %i",heading);
+		gyroTurn(90.0, turnSpeed, true);
+		nxtDisplayString(2,"gyro: %i",heading);
+		wait10Msec(1000);
+	}
+*/
 	ClearTimer(T1);
 	startSpin(true);
 	if(seekerValue > 4){

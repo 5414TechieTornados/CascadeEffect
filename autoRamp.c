@@ -59,7 +59,7 @@ void initializeRobot()
   // Sensors are automatically configured and setup by ROBOTC. They may need a brief time to stabilize.
 
 	servoTarget[topGate] = TOP_GATE_DOWN;
-	servoTarget[tube] = 255;
+	servoTarget[tube] = 150;
 
   	return;
 }
@@ -178,7 +178,7 @@ void turnRight(float distance){
 void driveOffRamp(){
 	driveRobot(blockDistance * 5.1, 78, backwards);
 	driveRobot(3, 20, backwards);
-	servoTarget[tube] = 0;
+	servoTarget[tube] = 230;
 	driveRobot(blockDistance, 78, forward);
 	turnRight(turnDistance/1.8);
 	driveRobot(blockDistance + 6.5, 78, forward);

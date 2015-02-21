@@ -1,13 +1,13 @@
 #pragma config(Hubs,  S1, HTMotor,  HTMotor,  HTServo,  HTMotor)
 #pragma config(Sensor, S2,     IRRight,        sensorI2CCustom)
 #pragma config(Sensor, S3,     gyro,           sensorI2CCustom)
-#pragma config(Motor,  mtr_S1_C1_1,     launcher,      tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S1_C1_2,     belts,         tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S1_C2_1,     left,          tmotorTetrix, PIDControl)
-#pragma config(Motor,  mtr_S1_C2_2,     right,         tmotorTetrix, PIDControl, reversed)
-#pragma config(Motor,  mtr_S1_C4_1,     collector,     tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S1_C4_2,     lift,          tmotorTetrix, openLoop)
-#pragma config(Servo,  srvo_S1_C3_1,    bottomGate,           tServoStandard)
+#pragma config(Motor,  mtr_S1_C1_1,     lift,          tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C1_2,     motorE,        tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C2_1,     left,          tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C2_2,     right,         tmotorTetrix, openLoop, reversed)
+#pragma config(Motor,  mtr_S1_C4_1,     topCollector,  tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C4_2,     bottomCollector, tmotorTetrix, openLoop, reversed)
+#pragma config(Servo,  srvo_S1_C3_1,    servo1,               tServoNone)
 #pragma config(Servo,  srvo_S1_C3_2,    topGate,              tServoStandard)
 #pragma config(Servo,  srvo_S1_C3_3,    tube,                 tServoStandard)
 #pragma config(Servo,  srvo_S1_C3_4,    auto4,                tServoStandard)
@@ -39,38 +39,60 @@ string leftDirection = "left";
 
 //movement information
 float maxSpeed = 60;
-float turnSpeed = 50;
+float turnSpeed = 100;
 float tolerance = 0;
 float blockDistance = 12;
 float leftTurnDistance = 10;
 float turnDistance = 11.4;
 
-const float TOP_GATE_UP = 180;
-const float TOP_GATE_DOWN = 60;
-const float SPIN_UP_TIME = 2500;
+const float TOP_GATE_UP = 140;
+const float TOP_GATE_DOWN = 255;
+const float SPIN_UP_TIME = 3000;
 const float TURN_TIME = 1.0;
 const float RIGHT_TURN_TIME = 1.1;
 
 const float buffer = 6.0;
 
-//Bad points on the field
-bool badPoint [7][7];
 
+void initializeRobot()
+{
+
+  // Place code here to initialize servos to starting positions.
+  // Sensors are automatically configured and setup by ROBOTC. They may need a brief time to stabilize.
+
+	servoTarget[topGate] = TOP_GATE_DOWN;
+	servoTarget[tube] = 255;
+
+  	return;
+}
+
+
+/*Basic right turn
+*/
 void turnRight(float speed){
 	motor[left] = speed;
 	motor[right] = -speed;
 }
 
+/*Basic left turn
+*/
 void turnLeft(float speed){
 	motor[left] = -speed;
 	motor[right] = speed;
 }
 
+/*Stopping the motors
+*/
 void stopMotors(){
 	motor[left] = 0;
 	motor[right] = 0;
 }
 
+
+/*Multitasking method used to spin up our lift while we are driving.
+  This is used in combination with startSpin to make sure we have fully raised
+  the lift before moving towards the goal. This keeps us from potentially knocking the goal off.
+*/
 bool checkSpinTimer(){
 	if(time1(T1) > SPIN_UP_TIME){
 		motor[lift] = 0;
@@ -80,6 +102,22 @@ bool checkSpinTimer(){
 		return false;
 }
 
+/*Multitasking method used to spin up our lift while we are driving.
+  This is used in combination with checkSpinTimer to make sure we have fully raised
+  the lift before moving towards the goal. This keeps us from potentially knocking the goal off.
+*/
+void startSpin(bool up){
+	ClearTimer(T1);
+	if(up){
+		motor[lift] = -100;
+	}
+	else{
+		motor[lift] = -00;
+	}
+}
+
+/*The logic to use the gyroscope in a turn
+*/
 void gyroTurn(float target, float speed, bool direction){
 	HTGYROstartCal(gyro);
 	heading = 0.0;
@@ -89,6 +127,7 @@ void gyroTurn(float target, float speed, bool direction){
 	{
 		checkSpinTimer();
 		currTime = nPgmTime;
+		//Our heading calculation logic
 		heading += (abs((float)HTGYROreadRot(gyro))) * (currTime - prevTime) / 1000;
 		prevTime = currTime;
 
@@ -135,36 +174,14 @@ void gyroTurn(float target, float speed, bool direction){
 	checkSpinTimer();
 }
 
-void initializeRobot()
-{
-
-  // Place code here to initialize servos to starting positions.
-  // Sensors are automatically configured and setup by ROBOTC. They may need a brief time to stabilize.
-
-	servoTarget[topGate] = TOP_GATE_DOWN;
-	servoTarget[tube] = 255;
-
-  	return;
-}
-
-void startSpin(bool up){
-	ClearTimer(T1);
-	if(up){
-		motor[lift] = -100;
-	}
-	else{
-		motor[lift] = -00;
-	}
-}
-
-bool validPoint (int X, int Y){
-	return badPoint[X][Y];
-}
-
+/*Our inches conversion for the robot
+*/
 float convertInches(float inches){
 	return (1120/6) * inches;
 }
 
+/*Basic drive logic
+*/
 void driveRobot(float distance, float speed, string direction){
 		//reset encoder values
 	nMotorEncoder[right] = 0;
@@ -210,40 +227,10 @@ void driveRobot(float distance, float speed, string direction){
 	motor[right] = 0;
 	motor[left] = 0;
 }
-
-void turnLeftTime(int full){
-
-	motor[left] = -100;
-	motor[right] = 100;
-	if(full == 0){
-		wait10Msec(100 * TURN_TIME);
-	}
-	else if(full == 1){
-		wait10Msec(100 * (TURN_TIME/1.8));
-	}
-	else{
-		wait10Msec(100 * (TURN_TIME * 1.2));
-	}
-	motor[left] = 0;
-	motor[right] = 0;
-}
-
-void turnRightTime(int full){
-	motor[left] = 100;
-	motor[right] = -100;
-		if(full == 0){
-		wait10Msec(100 * RIGHT_TURN_TIME);
-	}
-	else{
-		wait10Msec(100 * (RIGHT_TURN_TIME/1.8));
-	}
-	motor[left] = 0;
-	motor[right] = 0;
-}
-
+/*Method that once the robot is in position in front of the goal proceeds to score the ball
+*/
 void scoreBall(){
-
-	driveRobot(blockDistance / 4, maxSpeed, backwards);
+	driveRobot(blockDistance / 3.4, maxSpeed, backwards);
 
 	wait10Msec(100);
 	servoTarget(topGate) = TOP_GATE_UP;
@@ -251,7 +238,8 @@ void scoreBall(){
 	driveRobot(blockDistance / 4, maxSpeed, forward);
 }
 
-
+/*From the position of the center goal, we retreat and then try to hit the peg
+*/
 void hitPeg(){
 	gyroTurn(92.0, turnSpeed, true);
 	driveRobot(blockDistance/.9, 78, backwards);
@@ -259,16 +247,18 @@ void hitPeg(){
 	driveRobot(4 * blockDistance, 78, backwards);
 }
 
+/*Method used to position the robot to score in the first center goal position
+*/
 void firstPosition(){
-	startSpin(true);
-	driveRobot(2.0 * blockDistance, 78, backwards);
+	driveRobot(1.7 * blockDistance, 78, backwards);
 	while(!checkSpinTimer()){
 	}
 	scoreBall();
-	//startSpin(false);
 	hitPeg();
 }
 
+/*Moves the robot in a path common to the 2nd and 3rd positions
+*/
 void diagonalMove(){
 	startSpin(true);
 	driveRobot(blockDistance/2, 78, backwards);
@@ -276,6 +266,8 @@ void diagonalMove(){
 	driveRobot(blockDistance * 2.5, 78, backwards);
 }
 
+/*Method used to position the robot to score in the second center goal position
+*/
 void secondPosition(){
 	diagonalMove();
 	gyroTurn(90.0, turnSpeed, true);
@@ -286,7 +278,8 @@ void secondPosition(){
 	hitPeg();
 }
 
-
+/*Method used to position the robot to score in the third center goal position
+*/
 void thirdPosition(){
 	diagonalMove();
 	gyroTurn(45.0, turnSpeed, true);
@@ -298,6 +291,8 @@ void thirdPosition(){
 	hitPeg();
 }
 
+/*The attempt to continuously move back and forth to hit the peg in case we miss or aren't strong enough
+*/
 void continueHitting(){
 	driveRobot(blockDistance * 3, 78, forward);
 	driveRobot(blockDistance * 4, 78, backwards);
@@ -322,6 +317,9 @@ task main()
 */
 	ClearTimer(T1);
 	startSpin(true);
+	//Our sensing logic, anything greater than 4 is straight ahead
+	//Greater than 2 less than 4 is 2nd position
+	//Default to third position if nothing is found because that position returns a 0 on the seeker
 	if(seekerValue > 4){
 		firstPosition();
 	}

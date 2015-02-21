@@ -1,13 +1,13 @@
 #pragma config(Hubs,  S1, HTMotor,  HTMotor,  HTServo,  HTMotor)
 #pragma config(Sensor, S2,     IRRight,        sensorI2CCustom)
-#pragma config(Sensor, S3,     ,               sensorI2CCustom)
-#pragma config(Motor,  mtr_S1_C1_1,     launcher,      tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S1_C1_2,     belts,         tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S1_C2_1,     left,          tmotorTetrix, PIDControl)
-#pragma config(Motor,  mtr_S1_C2_2,     right,         tmotorTetrix, PIDControl, reversed)
-#pragma config(Motor,  mtr_S1_C4_1,     collector,     tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S1_C4_2,     lift,          tmotorTetrix, openLoop)
-#pragma config(Servo,  srvo_S1_C3_1,    bottomGate,           tServoStandard)
+#pragma config(Sensor, S3,     gyro,           sensorI2CCustom)
+#pragma config(Motor,  mtr_S1_C1_1,     lift,          tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C1_2,     motorE,        tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C2_1,     left,          tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C2_2,     right,         tmotorTetrix, openLoop, reversed)
+#pragma config(Motor,  mtr_S1_C4_1,     topCollector,  tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C4_2,     bottomCollector, tmotorTetrix, openLoop, reversed)
+#pragma config(Servo,  srvo_S1_C3_1,    servo1,               tServoNone)
 #pragma config(Servo,  srvo_S1_C3_2,    topGate,              tServoStandard)
 #pragma config(Servo,  srvo_S1_C3_3,    tube,                 tServoStandard)
 #pragma config(Servo,  srvo_S1_C3_4,    auto4,                tServoStandard)
@@ -17,11 +17,13 @@
 
 #include "drivers/hitechnic-irseeker-v2.h"
 #include "JoystickDriver.c"
+#include "drivers/hitechnic-gyro.h"
 
 //Robot directional info
 float xCoor = -1;
 float yCoor = -1;
 int direction = 0;
+float heading = 0.0;
 
 //directions
 int north = 0;
@@ -37,20 +39,22 @@ string leftDirection = "left";
 
 //movement information
 float maxSpeed = 60;
-float turnSpeed = 50;
+float turnSpeed = 100;
 float tolerance = 0;
 float blockDistance = 12;
 float leftTurnDistance = 10;
 float turnDistance = 11.4;
 
-const float TOP_GATE_UP = 180;
-const float TOP_GATE_DOWN = 60;
-const float SPIN_UP_TIME = 6400;
+const float TOP_GATE_UP = 140;
+const float TOP_GATE_DOWN = 255;
+const float SPIN_UP_TIME = 3000;
 const float TURN_TIME = 1.0;
 const float RIGHT_TURN_TIME = 1.1;
+const float TUBE_SERVO_UP = 85;
+const float TUBE_SERVO_DOWN = 170;
 
-//Bad points on the field
-bool badPoint [7][7];
+
+const float buffer = 6.0;
 
 void initializeRobot()
 {
@@ -59,7 +63,7 @@ void initializeRobot()
   // Sensors are automatically configured and setup by ROBOTC. They may need a brief time to stabilize.
 
 	servoTarget[topGate] = TOP_GATE_DOWN;
-	servoTarget[tube] = 150;
+	servoTarget[tube] = TUBE_SERVO_UP;
 
   	return;
 }
@@ -83,12 +87,29 @@ bool checkSpinTimer(){
 		return false;
 }
 
-bool validPoint (int X, int Y){
-	return badPoint[X][Y];
-}
-
 float convertInches(float inches){
 	return (1120/6) * inches;
+}
+
+/*Basic right turn
+*/
+void turnRight(float speed){
+	motor[left] = speed;
+	motor[right] = -speed;
+}
+
+/*Basic left turn
+*/
+void turnLeft(float speed){
+	motor[left] = -speed;
+	motor[right] = speed;
+}
+
+/*Stopping the motors
+*/
+void stopMotors(){
+	motor[left] = 0;
+	motor[right] = 0;
 }
 
 void driveRobot(float distance, float speed, string direction){
@@ -96,7 +117,7 @@ void driveRobot(float distance, float speed, string direction){
 	nMotorEncoder[right] = 0;
 	nMotorEncoder[left] = 0;
 
-	wait10Msec(100);
+	wait10Msec(1);
 
 	float target = convertInches(distance);
 
@@ -137,35 +158,64 @@ void driveRobot(float distance, float speed, string direction){
 	motor[left] = 0;
 }
 
-void turnLeftTime(int full){
+/*The logic to use the gyroscope in a turn
+*/
+void gyroTurn(float target, float speed, bool direction){
+	HTGYROstartCal(gyro);
+	heading = 0.0;
+	float currTime;
+	float prevTime = nPgmTime;
+	while (true)
+	{
+		checkSpinTimer();
+		currTime = nPgmTime;
+		//Our heading calculation logic
+		heading += (abs((float)HTGYROreadRot(gyro))) * (currTime - prevTime) / 1000;
+		prevTime = currTime;
 
-	motor[left] = -100;
-	motor[right] = 100;
-	if(full == 0){
-		wait10Msec(100 * TURN_TIME);
+		if(direction)
+		{
+			if(heading < (target - buffer))
+			{
+				turnRight(speed);
+			//	nxtDisplayString(1,"gyro: %i",HTGYROreadRot(gyro));
+			}
+			else if(heading > (target + buffer))
+			{
+				turnLeft(speed);
+			//	nxtDisplayString(1,"gyro: %i",HTGYROreadRot(gyro));
+			}
+			else if(heading <= (target + buffer) && heading >= (target - buffer))
+			{
+				stopMotors();
+			//	wait1Msec(waitTime);
+				return;
+			}
+		}
+		else
+		{
+			if(heading < (target - buffer))
+			{
+				turnLeft(speed);
+			//	nxtDisplayString(1,"gyro: %i",HTGYROreadRot(gyro));
+
+			}
+			else if(heading > (target + buffer))
+			{
+				turnRight(speed);
+			//	nxtDisplayString(1,"gyro: %i",HTGYROreadRot(gyro));
+			}
+			else if(heading <= (target + buffer) && heading >= (target - buffer))
+			{
+				stopMotors();
+			//	wait1Msec(waitTime);
+				return;
+			}
+		}
 	}
-	else if(full == 1){
-		wait10Msec(100 * (TURN_TIME/1.8));
-	}
-	else{
-		wait10Msec(100 * (TURN_TIME * 1.2));
-	}
-	motor[left] = 0;
-	motor[right] = 0;
+	checkSpinTimer();
 }
 
-void turnRightTime(int full){
-	motor[left] = 100;
-	motor[right] = -100;
-		if(full == 0){
-		wait10Msec(100 * RIGHT_TURN_TIME);
-	}
-	else{
-		wait10Msec(100 * (RIGHT_TURN_TIME/1.8));
-	}
-	motor[left] = 0;
-	motor[right] = 0;
-}
 void turnLeft(float distance){
 	driveRobot(distance, turnSpeed, leftDirection);
 }
@@ -178,15 +228,15 @@ void turnRight(float distance){
 void driveOffRamp(){
 	driveRobot(blockDistance * 5.1, 78, backwards);
 	driveRobot(3, 20, backwards);
-	servoTarget[tube] = 230;
+	servoTarget[tube] = TUBE_SERVO_DOWN;
 	driveRobot(blockDistance, 78, forward);
-	turnRight(turnDistance/1.8);
-	driveRobot(blockDistance + 6.5, 78, forward);
-	turnLeft(turnDistance / 2.15);
+	gyroTurn(45.0, turnSpeed, true);
+	driveRobot(blockDistance + 8.5, 78, forward);
+	gyroTurn(45.0, turnSpeed, false);
 	driveRobot(blockDistance * 3.1, 78, forward);
-	turnLeft(turnDistance + 2.8);
+	gyroTurn(100.0, turnSpeed, false);
 	motor[lift] = -100;
-	wait10Msec(150);
+	wait1Msec(SPIN_UP_TIME);
 	motor[lift] = 0;
 	servoTarget(topGate) = TOP_GATE_UP;
 	while(true){

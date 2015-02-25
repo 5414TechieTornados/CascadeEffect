@@ -47,7 +47,7 @@ float turnDistance = 11.4;
 
 const float TOP_GATE_UP = 140;
 const float TOP_GATE_DOWN = 255;
-const float SPIN_UP_TIME = 3000;
+const float SPIN_UP_TIME = 1500;
 const float TURN_TIME = 1.0;
 const float RIGHT_TURN_TIME = 1.1;
 const float TUBE_SERVO_UP = 85;
@@ -226,7 +226,7 @@ void turnRight(float distance){
 
 
 void driveOffRamp(){
-	driveRobot(blockDistance * 5.1, 78, backwards);
+	driveRobot(blockDistance * 5.1, 39, backwards);
 	driveRobot(3, 20, backwards);
 	servoTarget[tube] = TUBE_SERVO_DOWN;
 	driveRobot(blockDistance, 78, forward);

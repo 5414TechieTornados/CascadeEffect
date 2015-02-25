@@ -1,8 +1,9 @@
 #pragma config(Hubs,  S1, HTMotor,  HTMotor,  HTServo,  HTMotor)
 #pragma config(Sensor, S2,     IRRight,        sensorI2CCustom)
 #pragma config(Sensor, S3,     gyro,           sensorI2CCustom)
+#pragma config(Sensor, S4,     SonarSensor,    sensorSONAR)
 #pragma config(Motor,  mtr_S1_C1_1,     lift,          tmotorTetrix, openLoop)
-#pragma config(Motor,  mtr_S1_C1_2,     motorE,        tmotorTetrix, openLoop)
+#pragma config(Motor,  mtr_S1_C1_2,     swing,         tmotorTetrix, openLoop)
 #pragma config(Motor,  mtr_S1_C2_1,     left,          tmotorTetrix, openLoop)
 #pragma config(Motor,  mtr_S1_C2_2,     right,         tmotorTetrix, openLoop, reversed)
 #pragma config(Motor,  mtr_S1_C4_1,     topCollector,  tmotorTetrix, openLoop)
@@ -44,12 +45,18 @@ float tolerance = 0;
 float blockDistance = 12;
 float leftTurnDistance = 10;
 float turnDistance = 11.4;
+float badHeadingValue = 26;
+float sonarDistance = 30;
+//used to keep track of if we've been blocked yet
+bool blocked = false;
+int seekerValue;
 
 const float TOP_GATE_UP = 140;
 const float TOP_GATE_DOWN = 255;
 const float SPIN_UP_TIME = 3000;
 const float TURN_TIME = 1.0;
 const float RIGHT_TURN_TIME = 1.1;
+const float SWING_OUT_TIME = 950;
 
 const float buffer = 6.0;
 
@@ -86,6 +93,7 @@ void turnLeft(float speed){
 void stopMotors(){
 	motor[left] = 0;
 	motor[right] = 0;
+	motor[swing] = 0;
 }
 
 
@@ -180,14 +188,35 @@ float convertInches(float inches){
 	return (1120/6) * inches;
 }
 
+/*Stops our robot in the case of being knocked off course
+*/
+void offCourse(){
+	while(true){
+		motor[left] = 0;
+		motor[right] = 0;
+	}
+}
+
+/*Used as our backup plan to try and hit the kickstand if it appears we are blocked
+*/
+void backupKickstand(){
+	if(seekerValue > 2){
+		hitPeg();
+	}
+	else{
+		hitPeg();
+	}
+	stopMotors();
+}
+
 /*Basic drive logic
 */
-void driveRobot(float distance, float speed, string direction){
+bool driveRobot(float distance, float speed, string direction, bool useSonar){
 		//reset encoder values
 	nMotorEncoder[right] = 0;
 	nMotorEncoder[left] = 0;
 
-	wait10Msec(100);
+	wait10Msec(50);
 
 	float target = convertInches(distance);
 
@@ -212,66 +241,137 @@ void driveRobot(float distance, float speed, string direction){
 		motor[left] = -speed;
 	}
 
+	HTGYROstartCal(gyro);
+	heading = 0.0;
+	float currTime;
+	float prevTime = nPgmTime;
+
 		//Move the robot until encoder target is reached
 	while(abs(nMotorEncoder[right]) < target){
-	//while(nMotorRunState[left] != runStateIdle){
-
 		checkSpinTimer();
-		nxtDisplayTextLine(1, "target: %d", target);
-		nxtDisplayTextLine(2, "Right: %d", nMotorEncoder[right]);
-		nxtDisplayTextLine(3, "Left: %d", nMotorEncoder[left]);
+
+		//Check to make sure we are still heading in the right direction
+		currTime = nPgmTime;
+		//Our heading calculation logic
+		heading += (abs((float)HTGYROreadRot(gyro))) * (currTime - prevTime) / 1000;
+		prevTime = currTime;
+		if(heading >= badHeadingValue){
+			offCourse();
+		}
+
+
+		//check to make sure we have nothing behind us (we drive backwards)
+		if(SensorValue(sonarSensor) < sonarDistance && useSonar){
+			motor[right] = 0;
+			motor[left] = 0;
+			return false;
+		}
+
+
 		if(abs(target - abs(nMotorEncoder[right])) < tolerance || abs(target - abs(nMotorEncoder[left])) < tolerance){
 			break;
 		}
 	}
 	motor[right] = 0;
 	motor[left] = 0;
+	return true;
 }
+
+/*This is our obstacle avoidance method. If we detect a robot along our path to the second or third
+  position, we first will retreat back to the top of the tape. We then attempt to score again. If
+  we still read we are blocked we will retreat to the tape and then just attempt to hit the kickstand */
+void avoidObstacle(){
+	if(!blocked){
+		driveRobot(abs(nMotorEncoder[right]), 78, forward, false);
+		wait10Msec(500);
+		blocked = true;
+	}
+	else{
+		driveRobot(abs(nMotorEncoder[right]), 78, forward, true);
+		backupKickstand();
+	}
+}
+
 /*Method that once the robot is in position in front of the goal proceeds to score the ball
 */
 void scoreBall(){
-	driveRobot(blockDistance / 3.4, maxSpeed, backwards);
+	driveRobot(blockDistance / 3.4, maxSpeed, backwards, false);
 
 	wait10Msec(100);
 	servoTarget(topGate) = TOP_GATE_UP;
 	wait10Msec(100);
-	driveRobot(blockDistance / 4, maxSpeed, forward);
+	driveRobot(blockDistance / 4, maxSpeed, forward, false);
+}
+/*Powers the swinging arm for the kickstand
+*/
+void swingOut(bool forward){
+	if(forward){
+		motor[swing] = 50;
+	}
+	else{
+		motor[swing] = -50;
+	}
+}
+
+/*Method to move the swinging arm
+*/
+void moveSwing(){
+
+	swingOut(true);
+	wait1Msec(SWING_OUT_TIME);
+	gyroTurn(60, turnSpeed, true);
+	swingOut(false);
+	wait1Msec(SWING_OUT_TIME);
 }
 
 /*From the position of the center goal, we retreat and then try to hit the peg
 */
 void hitPeg(){
 	gyroTurn(92.0, turnSpeed, true);
-	driveRobot(blockDistance/.9, 78, backwards);
+	driveRobot(blockDistance * 1.6, 78, backwards, false);
 	gyroTurn(92.0, turnSpeed, false);
-	driveRobot(4 * blockDistance, 78, backwards);
+	driveRobot(blockDistance * 1.25, 78, backwards, false);
 }
 
 /*Method used to position the robot to score in the first center goal position
 */
 void firstPosition(){
-	driveRobot(1.7 * blockDistance, 78, backwards);
+	driveRobot(1.7 * blockDistance, 78, backwards, false);
 	while(!checkSpinTimer()){
 	}
 	scoreBall();
 	hitPeg();
 }
 
+/*Sets up the move towards the 2nd and 1st position
+*/
+void firstStepTowardsOuterTwo(){
+	startSpin(true);
+	driveRobot(blockDistance/2, 78, backwards, false);
+	gyroTurn(45.0, turnSpeed, false);
+}
+
 /*Moves the robot in a path common to the 2nd and 3rd positions
 */
 void diagonalMove(){
-	startSpin(true);
-	driveRobot(blockDistance/2, 78, backwards);
-	gyroTurn(45.0, turnSpeed, false);
-	driveRobot(blockDistance * 2.5, 78, backwards);
+	if(!driveRobot(blockDistance * 2.3, 78, backwards, false)){
+		avoidObstacle();
+		if(!blocked){
+			diagonalMove();
+		}
+		else{
+			backupKickstand();
+		}
+	}
 }
 
 /*Method used to position the robot to score in the second center goal position
 */
 void secondPosition(){
+	firstStepTowardsOuterTwo();
 	diagonalMove();
 	gyroTurn(90.0, turnSpeed, true);
-	driveRobot(blockDistance/2.6, maxSpeed, backwards);
+	driveRobot(blockDistance/2.6, maxSpeed, backwards, false);
 	while(!checkSpinTimer()){
 	}
 	scoreBall();
@@ -281,21 +381,15 @@ void secondPosition(){
 /*Method used to position the robot to score in the third center goal position
 */
 void thirdPosition(){
+	firstStepTowardsOuterTwo();
 	diagonalMove();
 	gyroTurn(45.0, turnSpeed, true);
-	driveRobot(blockDistance * 1.5, maxSpeed, backwards);
+	driveRobot(blockDistance * 1.35, maxSpeed, backwards, false);
 	gyroTurn(90.0, turnSpeed, true);
 	while(!checkSpinTimer()){
 	}
 	scoreBall();
 	hitPeg();
-}
-
-/*The attempt to continuously move back and forth to hit the peg in case we miss or aren't strong enough
-*/
-void continueHitting(){
-	driveRobot(blockDistance * 3, 78, forward);
-	driveRobot(blockDistance * 4, 78, backwards);
 }
 
 task main()
@@ -304,17 +398,11 @@ task main()
 	waitForStart();
 
 	tHTIRS2DSPMode _mode = DSP_1200;
-	int seekerValue = -5;
+	seekerValue = -5;
 
 	wait10Msec(50);
 	seekerValue = HTIRS2readACDir(IRRight);
-	/*while(true){
-		nxtDisplayString(2,"gyro: %i",heading);
-		gyroTurn(90.0, turnSpeed, true);
-		nxtDisplayString(2,"gyro: %i",heading);
-		wait10Msec(1000);
-	}
-*/
+
 	ClearTimer(T1);
 	startSpin(true);
 	//Our sensing logic, anything greater than 4 is straight ahead
@@ -329,7 +417,8 @@ task main()
 	else{
 		thirdPosition();
 	}
+	moveSwing();
 	while(true){
-		continueHitting();
+		stopMotors();
 	}
 }

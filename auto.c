@@ -53,7 +53,7 @@ int seekerValue;
 
 const float TOP_GATE_UP = 140;
 const float TOP_GATE_DOWN = 255;
-const float SPIN_UP_TIME = 3000;
+const float SPIN_UP_TIME = 2700;
 const float TURN_TIME = 1.0;
 const float RIGHT_TURN_TIME = 1.1;
 const float SWING_OUT_TIME = 950;
@@ -201,10 +201,10 @@ void offCourse(){
 */
 void backupKickstand(){
 	if(seekerValue > 2){
-		hitPeg();
+//		hitPeg();
 	}
 	else{
-		hitPeg();
+//		hitPeg();
 	}
 	stopMotors();
 }
@@ -301,6 +301,9 @@ void scoreBall(){
 	servoTarget(topGate) = TOP_GATE_UP;
 	wait10Msec(100);
 	driveRobot(blockDistance / 4, maxSpeed, forward, false);
+	motor[lift] = 75;
+	wait10Msec(100);
+	motor[lift] = 0;
 }
 /*Powers the swinging arm for the kickstand
 */
@@ -328,9 +331,9 @@ void moveSwing(){
 */
 void hitPeg(){
 	gyroTurn(92.0, turnSpeed, true);
-	driveRobot(blockDistance * 1.6, 78, backwards, false);
+	driveRobot(blockDistance * 1.5, 78, backwards, false);
 	gyroTurn(92.0, turnSpeed, false);
-	driveRobot(blockDistance * 1.25, 78, backwards, false);
+	driveRobot(blockDistance * 1.35, 78, backwards, false);
 }
 
 /*Method used to position the robot to score in the first center goal position
@@ -346,7 +349,6 @@ void firstPosition(){
 /*Sets up the move towards the 2nd and 1st position
 */
 void firstStepTowardsOuterTwo(){
-	startSpin(true);
 	driveRobot(blockDistance/2, 78, backwards, false);
 	gyroTurn(45.0, turnSpeed, false);
 }
@@ -363,6 +365,7 @@ void diagonalMove(){
 			backupKickstand();
 		}
 	}
+	startSpin(true);
 }
 
 /*Method used to position the robot to score in the second center goal position
@@ -401,14 +404,15 @@ task main()
 	seekerValue = -5;
 
 	wait10Msec(50);
-	seekerValue = HTIRS2readACDir(IRRight);
 
+	seekerValue = HTIRS2readACDir(IRRight);
 	ClearTimer(T1);
-	startSpin(true);
+
 	//Our sensing logic, anything greater than 4 is straight ahead
 	//Greater than 2 less than 4 is 2nd position
 	//Default to third position if nothing is found because that position returns a 0 on the seeker
 	if(seekerValue > 4){
+		startSpin(true);
 		firstPosition();
 	}
 	else if(seekerValue > 2){

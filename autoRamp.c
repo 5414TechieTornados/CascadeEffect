@@ -39,7 +39,7 @@ string leftDirection = "left";
 
 //movement information
 float maxSpeed = 60;
-float turnSpeed = 100;
+float turnSpeed = 78;
 float tolerance = 0;
 float blockDistance = 12;
 float leftTurnDistance = 10;
@@ -47,14 +47,15 @@ float turnDistance = 11.4;
 
 const float TOP_GATE_UP = 140;
 const float TOP_GATE_DOWN = 255;
-const float SPIN_UP_TIME = 1500;
+const float SPIN_UP_TIME = 1100;
+const float SPIN_UP_TIME_HIGHER = 1600;
 const float TURN_TIME = 1.0;
 const float RIGHT_TURN_TIME = 1.1;
-const float TUBE_SERVO_UP = 85;
-const float TUBE_SERVO_DOWN = 170;
+const float TUBE_SERVO_UP = 60;
+const float TUBE_SERVO_DOWN = 113;
 
 
-const float buffer = 6.0;
+const float buffer = 5.0;
 
 void initializeRobot()
 {
@@ -112,6 +113,18 @@ void stopMotors(){
 	motor[right] = 0;
 }
 
+void raiseLift(float time){
+	motor[lift] = -100;
+	wait1Msec(time);
+	motor[lift] = 0;
+}
+
+void score(){
+	servoTarget(topGate) = TOP_GATE_UP;
+	wait10Msec(250);
+}
+
+
 void driveRobot(float distance, float speed, string direction){
 		//reset encoder values
 	nMotorEncoder[right] = 0;
@@ -141,7 +154,7 @@ void driveRobot(float distance, float speed, string direction){
 		motor[right] = speed + 1;
 		motor[left] = -speed;
 	}
-
+	ClearTimer(T2);
 		//Move the robot until encoder target is reached
 	while(abs(nMotorEncoder[right]) < target){
 	//while(nMotorRunState[left] != runStateIdle){
@@ -152,6 +165,14 @@ void driveRobot(float distance, float speed, string direction){
 		nxtDisplayTextLine(3, "Left: %d", nMotorEncoder[left]);
 		if(abs(target - abs(nMotorEncoder[right])) < tolerance || abs(target - abs(nMotorEncoder[left])) < tolerance){
 			break;
+		}
+		if(time1(T2) > 10000){
+			motor[right] = 0;
+			motor[left] = 0;
+			raiseLift(SPIN_UP_TIME_HIGHER);
+			score();
+			while(true){
+			}
 		}
 	}
 	motor[right] = 0;
@@ -224,21 +245,23 @@ void turnRight(float distance){
 	driveRobot(distance, turnSpeed, rightDirection);
 }
 
-
 void driveOffRamp(){
-	driveRobot(blockDistance * 5.1, 39, backwards);
+	driveRobot(blockDistance * 5.1, 60, backwards);
 	driveRobot(3, 20, backwards);
 	servoTarget[tube] = TUBE_SERVO_DOWN;
-	driveRobot(blockDistance, 78, forward);
+	driveRobot(blockDistance, 60, forward);
 	gyroTurn(45.0, turnSpeed, true);
-	driveRobot(blockDistance + 8.5, 78, forward);
+	driveRobot(blockDistance + 13.5, 78, forward);
 	gyroTurn(45.0, turnSpeed, false);
-	driveRobot(blockDistance * 3.1, 78, forward);
-	gyroTurn(100.0, turnSpeed, false);
-	motor[lift] = -100;
-	wait1Msec(SPIN_UP_TIME);
-	motor[lift] = 0;
-	servoTarget(topGate) = TOP_GATE_UP;
+	driveRobot(blockDistance * 2, 78, forward);
+	gyroTurn(40.0, turnSpeed, true);
+	driveRobot(blockDistance/2, 60, forward);
+	gyroTurn(160.0, turnSpeed, false);
+	raiseLift(SPIN_UP_TIME);
+	gyroTurn(10.0, 35, true);
+	wait10Msec(300);
+	score();
+	driveRobot(blockDistance/2, 60, backwards);
 	while(true){
 	}
 }
